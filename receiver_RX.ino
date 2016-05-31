@@ -63,6 +63,7 @@ void loop(void){
       motor[i].writeMicroseconds(1000);
     }
     Serial.println("no signal");
+    // todo: add alarm buzzer, red signal led
   } else {
     for (int i = 0; i < 4; i++) {
       esc[i] = (int) (data[i * 3 + 0] + data[i * 3 + 1] + data[i * 3 + 2] + MIN_SIGNAL);
