@@ -31,8 +31,13 @@ RF24 radio(CE_PIN, CS_PIN);
 const uint64_t radio_pipe = 0xABCDABCD11LL;
 byte radio_data[12];
 
+unsigned long timer_0;
+unsigned long timer_n;
+
 unsigned long radio_timer_0;
 unsigned long radio_timer_n;
+
+int task100counter;
 
 double ctlX, ctlY, ctlR, ctlP;
 
@@ -46,22 +51,53 @@ void setup() {
   printf_begin();
   initESCs();
   initRadioModule();
+
+  unsigned long t0 = timer_0;
+
+  task100counter = 0;
+  timer_0 = micros();
+
+  unsigned long t0 = timer_0;
 }
 
 void loop() {
-
-}
-
+  timer_n = micros();
 
 
-
-
-void getRadioData(){
-  while(radio.available()) {
-    radio.read(&radio_data, 12);
-    radio_timer_0 = millis();
+ 
+  if ((timer_n - timer_0) >= 10000) {
+    task100counter++;
+    task100();
+    timer_0 = timer_n;
   }
-  radio_timer_n = millis();
+  
+  if (task100counter >= 100) {
+    task100counter = 0;
+    Serial.print(t0 - micros());   Serial.print("\t");
+  }
+
+  /*
+  if (t1 - t0 > 1000) {
+    for (int i = 0; i < 4; i++) {
+      motor[i].writeMicroseconds(1000);
+    }
+    Serial.println("no signal");
+    // todo: add alarm buzzer, red signal led
+  } else {
+    for (int i = 0; i < 4; i++) {
+      esc[i] = (int) (data[i * 3 + 0] + data[i * 3 + 1] + data[i * 3 + 2] + MIN_SIGNAL);
+      motor[i].writeMicroseconds(esc[i]);
+    }
+    Serial.print(esc[0]);
+    Serial.print("\t");
+    Serial.print(esc[1]);
+    Serial.print("\t");
+    Serial.print(esc[2]);
+    Serial.print("\t");
+    Serial.print(esc[3]);
+    Serial.println();
+  }
+  */
 }
 
 
@@ -84,37 +120,50 @@ void initRadioModule(void) {
   radio.setAutoAck(false);
   radio.disableCRC();
   radio.setRetries(2, 5);
-  radio.openReadingPipe(1, pipe);
+  radio.openReadingPipe(1, radio_pipe);
   radio.startListening();
   radio.printDetails();
-  t0 = millis();
+  radio_timer_0 = millis();
 }
 
-
-
-
-
-void loop(void){
-
-
-  if (t1 - t0 > 1000) {
-    for (int i = 0; i < 4; i++) {
-      motor[i].writeMicroseconds(1000);
-    }
-    Serial.println("no signal");
-    // todo: add alarm buzzer, red signal led
-  } else {
-    for (int i = 0; i < 4; i++) {
-      esc[i] = (int) (data[i * 3 + 0] + data[i * 3 + 1] + data[i * 3 + 2] + MIN_SIGNAL);
-      motor[i].writeMicroseconds(esc[i]);
-    }
-    Serial.print(esc[0]);
-    Serial.print("\t");
-    Serial.print(esc[1]);
-    Serial.print("\t");
-    Serial.print(esc[2]);
-    Serial.print("\t");
-    Serial.print(esc[3]);
-    Serial.println();
+void getRadioData() {
+  while(radio.available()) {
+    radio.read(&radio_data, 12);
+    radio_timer_0 = millis();
   }
+  radio_timer_n = millis();
+  ctlX = (int) (radio_data[0] + radio_data[1] + radio_data[2] + MIN_SIGNAL);
+  ctlY = (int) (radio_data[3] + radio_data[4] + radio_data[5] + MIN_SIGNAL);
+  ctlR = (int) (radio_data[6] + radio_data[7] + radio_data[8] + MIN_SIGNAL);
+  ctlP = (int) (radio_data[9] + radio_data[10] + radio_data[11] + MIN_SIGNAL);
 }
+
+void getSensorData() {
+
+}
+
+void calcMotorData() {
+
+}
+
+void setMotorData() {
+
+}
+
+
+void task100() {
+  getRadioData();
+
+  Serial.print(ctlX);  Serial.print("\t");
+  Serial.print(ctlY);  Serial.print("\t");
+  Serial.print(ctlR);  Serial.print("\t");
+  Serial.print(ctlP);  Serial.print("\t");
+  
+  //getSensorDtata();
+  //calcMotorData();
+  //setMotorData();
+     
+}
+
+
+
