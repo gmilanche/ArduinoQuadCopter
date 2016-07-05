@@ -24,6 +24,11 @@
 
 #define DEBUG 1
 
+GY91 gy91;
+
+Kalman kalmanX;
+Kalman kalmanY;
+
 Servo motor[4];
 int esc_pin[4] = { ESC_1_PIN, ESC_2_PIN, ESC_3_PIN, ESC_4_PIN };
 
@@ -40,24 +45,24 @@ unsigned long radio_timer_n;
 int task100counter;
 
 double ctlX, ctlY, ctlR, ctlP;
-
-
-
-
-
+double accX, accY, accZ, accR;
+double gyroX, gyroY, gyroZ;
+double roll, pitch;
+double kalX, kalY;
 
 void setup() {
   Serial.begin(115200);
   printf_begin();
   initESCs();
   initRadioModule();
+  initSensor();
 
   unsigned long t0 = timer_0;
 
   task100counter = 0;
   timer_0 = micros();
 
-  unsigned long t0 = timer_0;
+  unsigned long t0 = timer_0; //only for debug za merenje task100
 }
 
 void loop() {
@@ -139,7 +144,13 @@ void getRadioData() {
 }
 
 void getSensorData() {
-
+  gy91.getRawData_MPU9250(data);
+  accX = data[0];
+  accY = data[1];
+  accZ = data[2];
+  gyroX = data[4];
+  gyroY = data[5];
+  gyroZ = data[6];
 }
 
 void calcMotorData() {
@@ -159,11 +170,46 @@ void task100() {
   Serial.print(ctlR);  Serial.print("\t");
   Serial.print(ctlP);  Serial.print("\t");
   
-  //getSensorDtata();
+  getSensorData();
   //calcMotorData();
   //setMotorData();
      
 }
 
+void initSensor() {
+  gy91.initialize();
+  double sens = 16384000;
 
+  accX = 0;
+  accY = 0;
+  accZ = 0;
 
+  for (int i = 0; i < 1000; i++) {
+    gy91.getRawData_MPU9250(data);
+
+    accX += data[0];
+    accY += data[1];
+    accZ += data[2];
+  }
+
+  //osetljivost rezultata
+  accX = accX / sens;
+  accY = accY / sens;
+  accZ = accZ / sens;
+
+  //normalizovanje vektora
+  accR = sqrt(accX*accX + accY*accY + accZ*accZ);
+  accX = accX / accR;
+  accY = accY / accR;
+  accZ = accZ / accR;
+  
+  roll  = atan(accY / sqrt(accX * accX + accZ * accZ)) * RAD_TO_DEG;
+  pitch = atan2(-accX, accZ) * RAD_TO_DEG;
+
+  kalmanX.setAngle(roll); // Set starting angle
+  kalmanY.setAngle(pitch);
+}
+
+void invertPitch() {
+
+}
